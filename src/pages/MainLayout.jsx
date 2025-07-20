@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Header from "../components/Header";
-
+import { Paper, Typography } from "@mui/material";
 import GenreNavbar from "../components/GenreNavbar";
 import GameGrid from "../components/GameGrid";
 import Leaderboard from "../components/Leaderboard";
@@ -49,7 +49,10 @@ const MainLayout = () => {
         <div style={{ flex: 1 }}>
           <GameGrid games={games} />
         </div>
-        <Leaderboard leaderboard={leaderboard} />
+        <Paper sx={{ p: 3, width: 300, flexShrink: 0 }}>
+          <Typography variant="h6" gutterBottom>Bảng xếp hạng</Typography>
+          <Leaderboard leaderboard={leaderboard} />
+        </Paper>
       </div>
     </div>
   );

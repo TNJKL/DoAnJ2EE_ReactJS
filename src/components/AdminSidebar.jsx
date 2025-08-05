@@ -5,6 +5,7 @@ import PeopleIcon from "@mui/icons-material/People";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import ArticleIcon from "@mui/icons-material/Article";
 import SportsEsportsIcon from "@mui/icons-material/SportsEsports";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 
 const menu = [
   { text: "Dashboard", icon: <DashboardIcon />, key: "dashboard" },
@@ -12,6 +13,7 @@ const menu = [
   { text: "Duyệt game", icon: <AssignmentIcon />, key: "game-approval" },
   { text: "Duyệt bài viết", icon: <ArticleIcon />, key: "post-approval" },
   { text: "Game", icon: <SportsEsportsIcon />, key: "game-management" },
+  { text: "Quản lý Coin", icon: <AccountBalanceWalletIcon />, key: "coin-management" },
 ];
 
 function AdminSidebar({ selected, onSelect }) {
@@ -32,13 +34,13 @@ function AdminSidebar({ selected, onSelect }) {
       <List>
         {menu.map((item) => (
           <ListItem
-            button
             key={item.key}
             selected={selected === item.key}
             onClick={() => onSelect(item.key)}
             sx={{
               bgcolor: selected === item.key ? "#fff3e0" : "inherit",
               "&:hover": { bgcolor: "#ffe0b2" },
+              cursor: "pointer",
             }}
           >
             <ListItemIcon sx={{ color: "#b47b00" }}>{item.icon}</ListItemIcon>

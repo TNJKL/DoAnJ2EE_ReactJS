@@ -28,7 +28,14 @@ function UserPage() {
 
   const fetchUsers = () => {
     axios.get("http://localhost:8080/api/admin/users")
-      .then(res => setUsers(res.data));
+      .then(res => {
+        console.log("Users data:", res.data);
+        setUsers(res.data);
+      })
+      .catch(err => {
+        console.error("Error fetching users:", err);
+        setSnackbar({ open: true, message: "Lỗi tải danh sách user!", severity: "error" });
+      });
   };
 
   const handleOpenDialog = (user = null) => {
@@ -38,7 +45,7 @@ function UserPage() {
       setForm({
         username: user.username,
         email: user.email,
-        role: user.role.roleName,
+                 role: user.roleName || "user",
         password: ""
       });
     } else {
@@ -130,6 +137,7 @@ function UserPage() {
               <TableCell>Username</TableCell>
               <TableCell>Email</TableCell>
               <TableCell>Role</TableCell>
+              <TableCell>Coin</TableCell>
               <TableCell>Ngày tạo</TableCell>
               <TableCell align="right">Hành động</TableCell>
             </TableRow>
@@ -139,7 +147,8 @@ function UserPage() {
               <TableRow key={user.userID}>
                 <TableCell>{user.username}</TableCell>
                 <TableCell>{user.email}</TableCell>
-                <TableCell>{user.role.roleName}</TableCell>
+                                 <TableCell>{user.roleName}</TableCell>
+                 <TableCell>{user.coinAmount || 0}</TableCell>
                 <TableCell>{user.createdAt ? user.createdAt.replace("T", " ").slice(0, 19) : ""}</TableCell>
                 <TableCell align="right">
                   <IconButton color="primary" onClick={() => handleOpenDialog(user)}>
@@ -153,7 +162,7 @@ function UserPage() {
             ))}
             {users.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center">Không có user nào</TableCell>
+                <TableCell colSpan={6} align="center">Không có user nào</TableCell>
               </TableRow>
             )}
           </TableBody>
@@ -238,4 +247,4 @@ function UserPage() {
   );
 }
 
-export default UserPage;
+export default UserPage; 

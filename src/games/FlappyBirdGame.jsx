@@ -33,6 +33,14 @@ const FlappyBirdGame = ({ onGameEnd }) => {
   const [gameStarted, setGameStarted] = useState(false);
   const [scoreEffect, setScoreEffect] = useState(false); // Hiệu ứng khi đạt điểm
 
+  // Thêm refs cho ảnh
+  const birdImg = useRef(null);
+  const pipeImg = useRef(null);
+  const groundImg = useRef(null);
+  const cloudImg = useRef(null);
+  const backgroundImg = useRef(null);
+  const audioContextRef = useRef(null);
+
   // Lấy gameId từ URL và khởi tạo game
   useEffect(() => {
     const pathParts = window.location.pathname.split('/');
@@ -277,6 +285,64 @@ const FlappyBirdGame = ({ onGameEnd }) => {
     };
   }, [gameRunning, gamePaused, gameLoop]);
 
+  // Khởi tạo audio context
+  useEffect(() => {
+    audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    return () => {
+      if (audioContextRef.current) audioContextRef.current.close();
+    };
+  }, []);
+
+  // Load ảnh chim, ống cống, mặt đất, mây và background
+  useEffect(() => {
+    birdImg.current = new window.Image();
+    birdImg.current.src = 'https://www.pngmart.com/files/12/Flappy-Bird-Logo-PNG-Pic.png';
+    
+    pipeImg.current = new window.Image();
+    pipeImg.current.src = 'https://www.pngkey.com/png/full/183-1831473_flappy-bird-pipe-png-flappy-bird-pipe-transparent.png';
+    
+    groundImg.current = new window.Image();
+    groundImg.current.src = 'https://www.pikpng.com/pngl/b/47-474860_ground-flappy-bird-ground-scratch-clipart.png';
+    
+    cloudImg.current = new window.Image();
+    cloudImg.current.src = 'https://opengameart.org/sites/default/files/SingleCloud_0.png';
+    
+    backgroundImg.current = new window.Image();
+    backgroundImg.current.src = 'https://opengameart.org/sites/default/files/fondo.png';
+  }, []);
+
+  // Âm thanh giống game gốc
+  const playSound = useCallback((type) => {
+    if (!audioContextRef.current) return;
+    const ctx = audioContextRef.current;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    if (type === 'jump') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(600, ctx.currentTime);
+      gain.gain.setValueAtTime(0.07, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.08);
+    } else if (type === 'score') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(900, ctx.currentTime);
+      gain.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.09);
+    } else if (type === 'hit') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(120, ctx.currentTime);
+      gain.gain.setValueAtTime(0.09, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.18);
+    }
+  }, []);
+
   // Handle keyboard input
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -297,6 +363,7 @@ const FlappyBirdGame = ({ onGameEnd }) => {
             ...prev,
             velocity: jumpForce
           }));
+          playSound('jump');
         }
       }
 
@@ -313,45 +380,135 @@ const FlappyBirdGame = ({ onGameEnd }) => {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [gameRunning, gameOver, gameStarted]);
+  }, [gameRunning, gameOver, gameStarted, jumpForce, playSound]);
 
-  // Draw game
+  // Định nghĩa gameLoopWithSound ở ngoài useEffect
+  const gameLoopWithSound = useCallback(() => {
+    if (!gameRunning || gamePaused) return;
+    setBird(prevBird => {
+      const newBird = {
+        ...prevBird,
+        velocity: prevBird.velocity + gravity,
+        y: prevBird.y + prevBird.velocity
+      };
+      if (checkCollision(newBird, pipes)) {
+        setGameOver(true);
+        setGameRunning(false);
+        if (gameLoopRef.current) clearInterval(gameLoopRef.current);
+        playSound('hit');
+        if (finalScoreRef.current > 0 && !hasSavedScore && !isSavingScore) {
+          setHasSavedScore(true);
+          setTimeout(() => {
+            saveHighScore(finalScoreRef.current).then(() => {
+              if (onGameEnd) onGameEnd();
+            });
+          }, 200);
+        }
+        return prevBird;
+      }
+      return newBird;
+    });
+    setPipes(prevPipes => {
+      let newPipes = prevPipes.map(pipe => ({ ...pipe, x: pipe.x - pipeSpeed })).filter(pipe => pipe.x + pipeWidth > 0);
+      if (newPipes.length === 0 || newPipes[newPipes.length - 1].x < canvasWidth - 300) {
+        newPipes.push(generatePipe());
+      }
+      newPipes.forEach(pipe => {
+        if (!pipe.passed && pipe.x + pipeWidth < bird.x) {
+          pipe.passed = true;
+          setScore(prev => {
+            const newScore = prev + 10;
+            finalScoreRef.current = newScore;
+            if (newScore > highScore) setHighScore(newScore);
+            setScoreEffect(true);
+            setTimeout(() => setScoreEffect(false), 300);
+            playSound('score');
+            return newScore;
+          });
+        }
+      });
+      return newPipes;
+    });
+  }, [gameRunning, gamePaused, pipes, bird, checkCollision, generatePipe, highScore, hasSavedScore, isSavingScore, onGameEnd, playSound]);
+
+  // Sửa useEffect chỉ gọi setInterval với gameLoopWithSound
+  useEffect(() => {
+    if (gameRunning && !gamePaused) {
+      if (gameLoopRef.current) {
+        clearInterval(gameLoopRef.current);
+      }
+      gameLoopRef.current = setInterval(gameLoopWithSound, 16); // ~60 FPS
+    } else if (gameLoopRef.current) {
+      clearInterval(gameLoopRef.current);
+    }
+    return () => {
+      if (gameLoopRef.current) {
+        clearInterval(gameLoopRef.current);
+      }
+    };
+  }, [gameRunning, gamePaused, gameLoopWithSound]);
+
+  // Sửa useEffect vẽ canvas: thêm background, mây và mặt đất
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
     const ctx = canvas.getContext('2d');
-
-    // Clear canvas
-    ctx.fillStyle = '#87CEEB'; // Sky blue
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Draw ground
-    ctx.fillStyle = '#8FBC8F'; // Dark sea green
-    ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
-
-    // Draw bird
-    ctx.fillStyle = '#FFD700'; // Gold
-    ctx.fillRect(bird.x, bird.y, 20, 20);
     
-    // Bird eye
-    ctx.fillStyle = '#000';
-    ctx.fillRect(bird.x + 15, bird.y + 5, 3, 3);
-
-    // Draw pipes
+    // Vẽ background
+    if (backgroundImg.current && backgroundImg.current.complete) {
+      ctx.drawImage(backgroundImg.current, 0, 0, canvas.width, canvas.height);
+    } else {
+      ctx.fillStyle = '#87CEEB';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    // Vẽ mây (3-5 đám mây di chuyển)
+    if (cloudImg.current && cloudImg.current.complete) {
+      for (let i = 0; i < 4; i++) {
+        const cloudX = (Date.now() * 0.02 + i * 150) % (canvas.width + 100) - 50;
+        const cloudY = 50 + Math.sin(Date.now() * 0.001 + i) * 20;
+        ctx.globalAlpha = 0.7;
+        ctx.drawImage(cloudImg.current, cloudX, cloudY, 60, 40);
+      }
+      ctx.globalAlpha = 1;
+    }
+    
+    // Vẽ pipes bằng ảnh
     pipes.forEach(pipe => {
-      ctx.fillStyle = '#228B22'; // Forest green
-      // Top pipe
-      ctx.fillRect(pipe.x, 0, pipeWidth, pipe.gapY);
-      // Bottom pipe
-      ctx.fillRect(pipe.x, pipe.gapY + pipeGap, pipeWidth, canvas.height - pipe.gapY - pipeGap);
-      
-      // Pipe borders
-      ctx.strokeStyle = '#006400';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(pipe.x, 0, pipeWidth, pipe.gapY);
-      ctx.strokeRect(pipe.x, pipe.gapY + pipeGap, pipeWidth, canvas.height - pipe.gapY - pipeGap);
+      if (pipeImg.current && pipeImg.current.complete) {
+        // Ống trên
+        ctx.save();
+        ctx.translate(pipe.x, pipe.gapY);
+        ctx.scale(1, -1);
+        ctx.drawImage(pipeImg.current, 0, 0, pipeWidth, pipe.gapY);
+        ctx.restore();
+        // Ống dưới
+        ctx.drawImage(pipeImg.current, pipe.x, pipe.gapY + pipeGap, pipeWidth, canvas.height - pipe.gapY - pipeGap);
+      } else {
+        // Fallback: vẽ màu
+        ctx.fillStyle = '#228B22';
+        ctx.fillRect(pipe.x, 0, pipeWidth, pipe.gapY);
+        ctx.fillRect(pipe.x, pipe.gapY + pipeGap, pipeWidth, canvas.height - pipe.gapY - pipeGap);
+      }
     });
+    
+    // Vẽ chim bằng ảnh
+    if (birdImg.current && birdImg.current.complete) {
+      ctx.drawImage(birdImg.current, bird.x, bird.y, 34, 24);
+    } else {
+      ctx.fillStyle = '#FFD700';
+      ctx.fillRect(bird.x, bird.y, 20, 20);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(bird.x + 15, bird.y + 5, 3, 3);
+    }
+    
+    // Vẽ mặt đất bằng ảnh
+    if (groundImg.current && groundImg.current.complete) {
+      ctx.drawImage(groundImg.current, 0, canvas.height - 40, canvas.width, 40);
+    } else {
+      ctx.fillStyle = '#8FBC8F';
+      ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
+    }
   }, [bird, pipes]);
 
   const restartGame = () => {
@@ -382,19 +539,16 @@ const FlappyBirdGame = ({ onGameEnd }) => {
     setIsFocused(false);
   };
 
+  // Sửa handleJump để phát âm thanh
   const handleJump = () => {
     if (gameOver) return;
-
     if (!gameStarted) {
       setGameStarted(true);
       setGameRunning(true);
     }
-    
     if (gameRunning && !gamePaused) {
-      setBird(prev => ({
-        ...prev,
-        velocity: jumpForce
-      }));
+      setBird(prev => ({ ...prev, velocity: jumpForce }));
+      playSound('jump');
     }
   };
 

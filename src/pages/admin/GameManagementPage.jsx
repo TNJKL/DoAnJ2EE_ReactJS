@@ -32,11 +32,13 @@ function GameManagementPage() {
   const fetchGames = async () => {
     try {
       const url = showHidden
-        ? "http://localhost:8080/api/admin/games?visible=false"
-        : "http://localhost:8080/api/admin/games?visible=true";
+        ? "http://localhost:8080/api/admin/games/management?visible=false"
+        : "http://localhost:8080/api/admin/games/management?visible=true";
       const res = await axios.get(url);
+      console.log("Games data:", res.data);
       setGames(res.data);
     } catch (err) {
+      console.error("Error fetching games:", err);
       setSnackbar({ open: true, message: "Lỗi tải danh sách game!", severity: "error" });
     }
   };
@@ -62,8 +64,8 @@ function GameManagementPage() {
   const handleEdit = (game) => {
     setEditGame({
       ...game,
-      genreID: game.genre?.genreID || "",
-      createdByID: game.createdBy?.userID || ""
+      genreID: game.genreID || "",
+      createdByID: game.createdByID || ""
     });
     setOpenDialog(true);
   };
@@ -167,11 +169,12 @@ function GameManagementPage() {
                 <TableCell>{game.title}</TableCell>
                 <TableCell>{game.description}</TableCell>
                 <TableCell>
-                  {/* <Avatar src={game.thumbnailUrl} variant="rounded" /> */}
+                  {game.thumbnailUrl && (
                     <Avatar src={`http://localhost:8080${game.thumbnailUrl}`} variant="rounded" />
+                  )}
                 </TableCell>
-                <TableCell>{game.genre?.name}</TableCell>
-                <TableCell>{game.createdBy?.username}</TableCell>
+                <TableCell>{game.genreName}</TableCell>
+                <TableCell>{game.createdByUsername}</TableCell>
                 <TableCell>
                   {game.isApproved === null ? <Chip label="Chờ duyệt" color="warning" /> :
                     game.isApproved ? <Chip label="Đã duyệt" color="success" /> :
@@ -271,4 +274,4 @@ function GameManagementPage() {
   );
 }
 
-export default GameManagementPage;
+export default GameManagementPage; 

@@ -26,13 +26,26 @@ function PostApprovalPage() {
     if (tab === 0) url = "http://localhost:8080/api/admin/forum-posts/pending";
     else if (tab === 1) url = "http://localhost:8080/api/admin/forum-posts/approved";
     else if (tab === 2) url = "http://localhost:8080/api/admin/forum-posts/rejected";
+    
     axios.get(url)
       .then(res => {
+        console.log("Posts data:", res.data);
+        console.log("URL:", url);
+        console.log("Tab:", tab);
         // Đảm bảo luôn là mảng
-        if (Array.isArray(res.data)) setPosts(res.data);
-        else setPosts([]);
+        if (Array.isArray(res.data)) {
+          setPosts(res.data);
+          console.log("Posts count:", res.data.length);
+        } else {
+          console.log("Response is not array:", typeof res.data);
+          setPosts([]);
+        }
       })
-      .catch(() => setPosts([]));
+      .catch(err => {
+        console.error("Error fetching posts:", err);
+        setPosts([]);
+        setSnackbar({ open: true, message: "Lỗi tải danh sách bài viết!", severity: "error" });
+      });
   };
 
   const handleApproveClick = (post) => {
@@ -61,7 +74,7 @@ function PostApprovalPage() {
     try {
       await axios.put(`http://localhost:8080/api/admin/forum-posts/${id}/approve`);
       setSnackbar({ open: true, message: "Duyệt bài viết thành công!", severity: "success" });
-      setTab(1); // Chuyển sang tab Đã duyệt
+      fetchPosts(); // Refresh lại danh sách thay vì chuyển tab
     } catch (err) {
       let errorMsg = "Lỗi duyệt bài viết!";
       if (err.response?.data) {
@@ -79,7 +92,7 @@ function PostApprovalPage() {
     try {
       await axios.put(`http://localhost:8080/api/admin/forum-posts/${id}/reject`);
       setSnackbar({ open: true, message: "Từ chối bài viết thành công!", severity: "success" });
-      setTab(2); // Chuyển sang tab Từ chối
+      fetchPosts(); // Refresh lại danh sách thay vì chuyển tab
     } catch (err) {
       let errorMsg = "Lỗi từ chối bài viết!";
       if (err.response?.data) {
@@ -101,6 +114,20 @@ function PostApprovalPage() {
   const handleCloseContentDialog = () => {
     setOpenContentDialog(false);
     setSelectedPost(null);
+  };
+
+  const getStatusText = (isApproved) => {
+    if (isApproved === null || isApproved === undefined) return "Chờ duyệt";
+    if (isApproved === true) return "Đã duyệt";
+    if (isApproved === false) return "Từ chối";
+    return "Chờ duyệt";
+  };
+
+  const canShowActions = (post) => {
+    if (tab === 0) {
+      return post.isApproved === null || post.isApproved === undefined;
+    }
+    return false;
   };
 
   return (
@@ -128,7 +155,7 @@ function PostApprovalPage() {
           <TableBody>
             {posts.map((post) => (
               <TableRow key={post.postID}>
-                <TableCell>{post.user?.username}</TableCell>
+                <TableCell>{post.username || post.user?.username || post.author?.username || "Unknown"}</TableCell>
                 <TableCell>{post.title}</TableCell>
                 <TableCell>
                   <IconButton color="primary" onClick={() => handleOpenContentDialog(post)}>
@@ -136,11 +163,11 @@ function PostApprovalPage() {
                   </IconButton>
                 </TableCell>
                 <TableCell>
-                  {post.isApproved === true ? "Đã duyệt" : post.isApproved === false ? "Từ chối" : "Chờ duyệt"}
+                  {getStatusText(post.isApproved)}
                 </TableCell>
                 <TableCell>{post.createdAt ? post.createdAt.replace("T", " ").slice(0, 19) : ""}</TableCell>
                 <TableCell align="right">
-                  {tab === 0 && post.isApproved !== true && post.isApproved !== false ? (
+                  {canShowActions(post) ? (
                     <>
                       <IconButton color="success" onClick={() => handleApproveClick(post)}>
                         <CheckIcon />
@@ -149,11 +176,11 @@ function PostApprovalPage() {
                         <CloseIcon />
                       </IconButton>
                     </>
-                  ) : tab === 1 && post.isApproved === true ? (
+                  ) : post.isApproved === true ? (
                     <Box sx={{ color: "green", display: "flex", alignItems: "center", gap: 1 }}>
                       <CheckIcon fontSize="small" /> Đã duyệt
                     </Box>
-                  ) : tab === 2 && post.isApproved === false ? (
+                  ) : post.isApproved === false ? (
                     <Box sx={{ color: "red", display: "flex", alignItems: "center", gap: 1 }}>
                       <CloseIcon fontSize="small" /> Đã từ chối
                     </Box>
@@ -195,7 +222,7 @@ function PostApprovalPage() {
         <DialogTitle>Nội dung bài viết</DialogTitle>
         <DialogContent>
           <Typography variant="h6">{selectedPost?.title}</Typography>
-          <Typography sx={{ mt: 2 }}>{selectedPost?.content}</Typography>
+          <Typography sx={{ mt: 2, whiteSpace: 'pre-wrap' }}>{selectedPost?.content}</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseContentDialog}>Đóng</Button>
@@ -216,4 +243,4 @@ function PostApprovalPage() {
   );
 }
 
-export default PostApprovalPage;
+export default PostApprovalPage; 

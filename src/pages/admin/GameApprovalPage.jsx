@@ -26,7 +26,14 @@ function GameApprovalPage() {
 
   const fetchSubmissions = () => {
     axios.get("http://localhost:8080/api/admin/game-submissions")
-      .then(res => setSubmissions(res.data));
+      .then(res => {
+        console.log("Submissions data:", res.data);
+        setSubmissions(res.data);
+      })
+      .catch(err => {
+        console.error("Error fetching submissions:", err);
+        setSnackbar({ open: true, message: "Lỗi tải danh sách submissions!", severity: "error" });
+      });
   };
 
   const handleApproveClick = (submission) => {
@@ -111,6 +118,7 @@ function GameApprovalPage() {
           <TableHead>
             <TableRow>
               <TableCell>Dev</TableCell>
+              <TableCell>Tiêu đề</TableCell>
               <TableCell>Mô tả</TableCell>
               <TableCell>File</TableCell>
               <TableCell>Trạng thái</TableCell>
@@ -121,18 +129,19 @@ function GameApprovalPage() {
           <TableBody>
             {submissions.map((sub) => (
               <TableRow key={sub.submissionID}>
-                <TableCell>{sub.developer?.username}</TableCell>
-                <TableCell>{sub.description}</TableCell>
+                <TableCell>{sub.developerUsername}</TableCell>
+                <TableCell>{sub.gameTitle}</TableCell>
+                <TableCell>{sub.gameDescription}</TableCell>
                 <TableCell>
                   <Button
                     startIcon={<VisibilityIcon />}
-                    onClick={() => handlePreview(sub.fileUrl)}
+                    onClick={() => handlePreview(sub.gameFileUrl)}
                     size="small"
                   >
                     Xem trước
                   </Button>
                   <Button
-                    onClick={() => handleDownload(sub.fileUrl)}
+                    onClick={() => handleDownload(sub.gameFileUrl)}
                     size="small"
                   >
                     Tải về
@@ -174,7 +183,7 @@ function GameApprovalPage() {
             ))}
             {submissions.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center">Không có submission nào</TableCell>
+                <TableCell colSpan={7} align="center">Không có submission nào</TableCell>
               </TableRow>
             )}
           </TableBody>
@@ -266,4 +275,4 @@ function GameApprovalPage() {
   );
 }
 
-export default GameApprovalPage;
+export default GameApprovalPage; 

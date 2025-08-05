@@ -103,7 +103,7 @@ const GameGrid = ({ games }) => {
               borderRadius: "12px",
               fontSize: "12px"
             }}>
-              {game.genre?.name}
+              {game.genreName}
             </span>
           </div>
           

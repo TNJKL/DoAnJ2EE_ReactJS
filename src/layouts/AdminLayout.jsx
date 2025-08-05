@@ -5,6 +5,7 @@ import UserPage from "../pages/admin/UserPage";
 import GameApprovalPage from "../pages/admin/GameApprovalPage";
 import PostApprovalPage from "../pages/admin/PostApprovalPage";
 import GameManagementPage from "../pages/admin/GameManagementPage";
+import AdminCoinManagement from "../pages/admin/AdminCoinManagement";
 import Header from "../components/Header"; // Thêm dòng này
 // import các page khác khi làm tiếp
 
@@ -28,6 +29,7 @@ function AdminLayout() {
         {selected === "game-approval" && <GameApprovalPage />}
         {selected === "post-approval" && <PostApprovalPage />}
         {selected === "game-management" && <GameManagementPage />}
+        {selected === "coin-management" && <AdminCoinManagement />}
       </div>
     </div>
   );
